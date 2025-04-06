@@ -1,0 +1,60 @@
+catList {
+    display: block;
+    width: 40%;
+    margin-bottom: 20px;
+    padding: 15px;
+    background: #ffffff;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+head {
+    display: block;
+    width: 50%;
+    padding: 10px;
+    margin-bottom: 10px;
+    border-left: 5px solid #FFC0CB;
+    border-radius: 5px;
+    box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.05);
+    background-color: #ffffff;
+}
+
+title {
+    font-size: 18px;
+    font-weight: bold;
+    color: #343a40;
+    display: block;
+    margin-bottom: 5px;
+}
+
+composition {
+    font-style: italic;
+    font-size: 16px;
+    color: #000000;
+    display: block;
+    margin-bottom: 5px;
+}
+
+characteristics {
+    font-size: 14px;
+    color: #000000;
+    font-weight: bold;
+    display: block;
+}
+
+header {
+    text-align: center;
+    font-size: 24px;
+    font-weight: bold;
+    color: #2c3e50;
+    margin-bottom: 20px;
+}
+
+image {
+    display: block;
+    width: 100%;
+    max-width: 200px;
+    height: auto;
+    margin-bottom: 10px;
+    border-radius: 10px;
+}

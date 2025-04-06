@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Обработка XML файла с котиками</title>
+    <style>
+        .color-square {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            margin-left: 8px;
+            border: 1px solid #000;
+            vertical-align: middle;
+        }
+    </style>
+</head>
+<body>
+    <h1>Обработка XML файла с котиками</h1>
+    <label for="catListIndex">Введите номер котика (0-Булочка, 1-Алекс, 2-Плюша):</label>
+    <input type="number" id="catListIndex" min="0" value="0">
+    <button onclick="processXML()">Показать характеристики</button>
+
+    <h2>Характеристики котика:</h2>
+    <ul id="characteristicsList"></ul>
+
+    <script>
+        const xmlString = `
+        <root>
+            <header>
+                <title>Список котиков</title>
+            </header>
+            <catList>
+                <head>
+                    <title>Булочка</title>
+                    <age>5 лет</age>
+                    <cuteLevel>Уровень милоты: 100/10</cuteLevel>
+                </head>
+                <composition>
+                    <characteristics>Порода: дворняга</characteristics>
+                    <characteristics>Окрас: чёрный</characteristics>
+                    <characteristics>Цвет глаз: зелёный</characteristics>
+                    <characteristics>Цвет лапки: чёрный</characteristics>
+                    <characteristics>Любимая игрушка: мячик</characteristics>
+                </composition>
+            </catList>
+            <catList>
+                <head>
+                    <title>Алекс</title>
+                    <age>9 лет</age>
+                    <cuteLevel>Уровень милоты: 100/10</cuteLevel>
+                </head>
+                <composition>
+                    <characteristics>Порода: мэйн-кун</characteristics>
+                    <characteristics>Окрас: дымчатый</characteristics>
+                    <characteristics>Цвет глаз: голубой</characteristics>
+                    <characteristics>Цвет лапки: черный</characteristics>
+                    <characteristics>Любимая игрушка: лампочка от гирлянды</characteristics>
+                </composition>
+            </catList>
+            <catList>
+                <head>
+                    <title>Плюша</title>
+                    <age>10 лет</age>
+                    <cuteLevel>Уровень милоты: 100/10</cuteLevel>
+                </head>
+                <composition>
+                    <characteristics>Порода: британец вислоухий</characteristics>
+                    <characteristics>Окрас: серый</characteristics>
+                    <characteristics>Цвет глаз: зелёный</characteristics>
+                    <characteristics>Цвет лапки: розовый</characteristics>
+                    <characteristics>Любимая игрушка: волосы Лизы</characteristics>
+                </composition>
+            </catList>
+        </root>
+        `;
+
+         function processXML() {
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(xmlString, "text/xml");
+
+            const catListIndex = parseInt(document.getElementById('catListIndex').value);
+            const catListElements = xmlDoc.getElementsByTagName('catList');
+
+            if (catListIndex >= catListElements.length || catListIndex < 0) {
+                alert('Котика с таким номером не существует');
+                return;
+            }
+
+            const selectedCatList = catListElements[catListIndex];
+            const characteristicsElements = selectedCatList.getElementsByTagName('characteristics');
+
+            const characteristicsList = document.getElementById('characteristicsList');
+            characteristicsList.innerHTML = '';
+
+            for (let i = 0; i < characteristicsElements.length; i++) {
+                const li = document.createElement('li');
+                const text = characteristicsElements[i].textContent;
+
+                if (text.includes("Цвет глаз:")) {
+                    const color = text.split(": ")[1];
+                    li.textContent = text;
+
+                    const colorSquare = document.createElement('span');
+                    colorSquare.className = 'color-square';
+                    colorSquare.style.backgroundColor = getColorCode(color);
+
+                    li.appendChild(colorSquare);
+                } else {
+                    li.textContent = text;
+                }
+
+                characteristicsList.appendChild(li);
+            }
+        }
+
+        function getColorCode(color) {
+            const colorMap = {
+                "карий": "SaddleBrown",
+                "зелёный": "LimeGreen",
+                "голубой": "#00cccc",
+                "чёрный": "black",
+                "серый": "gray"
+            };
+            return colorMap[color.toLowerCase()] || color;
+        }
+    </script>
+</body>
+</html>

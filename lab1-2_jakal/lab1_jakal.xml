@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- <?xml-stylesheet type="text/css" href="catStyle.css"?> -->
+<?xml-stylesheet type="text/xsl" href="catStyle.xsl"?>
+
+<root>
+    <header>
+        <title>Список котиков</title>
+    </header>
+    <catList>
+        <head>
+            <title>Булочка</title>
+            <age>5 лет</age>
+            <cuteLevel>100/10</cuteLevel>
+        </head>
+        <image>bulochka.jpg</image>
+        <composition>
+            <characteristics>Порода: дворняга</characteristics>
+            <characteristics>Окрас: чёрный</characteristics>
+            <characteristics>Цвет глаз: зелёный</characteristics>
+            <characteristics>Цвет лапки: чёрный</characteristics>
+            <characteristics>Любимая игрушка: мячик</characteristics>
+        </composition>
+    </catList>
+    <catList>
+        <head>
+            <title>Алекс</title>
+            <age>9 лет</age>
+            <cuteLevel>100/10</cuteLevel>
+        </head>
+        <image>Alex.jpg</image>
+        <composition>
+            <characteristics>Порода: мэйн-кун</characteristics>
+            <characteristics>Окрас: дымчатый</characteristics>
+            <characteristics>Цвет глаз: зелёный</characteristics>
+            <characteristics>Цвет лапки: черный</characteristics>
+            <characteristics>Любимая игрушка: лампочка от гирлянды</characteristics>
+        </composition>
+    </catList>
+    <catList>
+        <head>
+            <title>Плюша</title>
+            <age>10 лет</age>
+            <cuteLevel>100/10</cuteLevel>
+        </head>
+        <image>plusha.jpg</image>
+        <composition>
+            <characteristics>Порода: британец вислоухий</characteristics>
+            <characteristics>Окрас: серый</characteristics>
+            <characteristics>Цвет глаз: зелёный</characteristics>
+            <characteristics>Цвет лапки: розовый</characteristics>
+            <characteristics>Любимая игрушка: волосы Лизы</characteristics>
+        </composition>
+    </catList>
+</root>
