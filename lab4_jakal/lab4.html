@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Лабулька 4</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        select, textarea, input, button {
+            padding: 8px;
+            font-size: 16px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .hidden {
+            display: none;
+        }
+        #authContainer {
+            margin-bottom: 20px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        #userInfo {
+            margin-top: 10px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Выполнить действие в ВКонтакте</h1>
+
+        <!-- Контейнер для авторизации -->
+        <div id="authContainer">
+            <div id="vkidOneTap"></div>
+            <div id="userInfo"></div>
+        </div>
+
+        <div id="actionContainer" class="hidden">
+            <label for="action">Выберите действие:</label>
+            <select id="action">
+                <option value="post">Оставить пост на стене (только для друзей)</option>
+                <option value="comment">Оставить комментарий под постом</option>
+                <option value="status">Изменить статус страницы</option>
+                <option value="like">Лайкнуть пост</option>
+                <option value="message">Отправить сообщение</option>
+            </select>
+        </div>
+
+        <div id="postIdContainer" class="hidden">
+            <label for="postId">ID поста (для комментария или лайка):</label>
+            <input type="text" id="postId">
+        </div>
+
+        <div id="ownerIdContainer" class="hidden">
+            <label for="ownerId">ID владельца стены (если не ваш):</label>
+            <input type="text" id="ownerId">
+        </div>
+
+        <div id="userIdContainer" class="hidden">
+            <label for="userId">ID пользователя (для сообщения):</label>
+            <input type="text" id="userId">
+        </div>
+
+        <div id="textContainer" class="hidden">
+            <label for="text">Текст:</label>
+            <textarea id="text" rows="4"></textarea>
+        </div>
+
+        <button id="execute" class="hidden">Выполнить</button>
+        <div id="result"></div>
+    </div>
+
+    <!-- Подключаем VK ID SDK -->
+    <script src="https://unpkg.com/@vkid/sdk@2.5.2/dist-sdk/umd/index.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@vkid/sdk2.5.2/dist-sdk/umd/index.js"></script>
+
+    <script>
+      if (window.VKIDSDK) {
+        console.log("SDK успешно загружен", window.VKIDSDK);
+      } else {
+        console.error("SDK не загружен");
+      }
+    </script>
+
+    <script>
+        let accessToken = null;
+        let userId = null;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            if ('VKIDSDK' in window) {
+                const VKID = window.VKIDSDK;
+
+
+                VKID.Config.init({
+                    app: 53249413,
+                    redirectUrl: "https://localhost.com",
+                    responseMode: VKID.ConfigResponseMode.Query,
+                    source: VKID.ConfigSource.LOWCODE,
+                    scope: 'wall,photos,status,messages,docs,groups,offline',
+                    disableRefererCheck: true
+                });
+
+            new VKID.OneTap({
+                timeout: 30000
+            })
+            .render({
+                container: document.getElementById('vkidOneTap'),
+                showAlternativeLogin: true
+            })
+            .on(VKID.OneTap.Events.LOGIN_SUCCESS, function(payload) {
+                const code = payload.code;
+                const deviceId = payload.device_id;
+
+                VKID.Auth.exchangeCode(code, deviceId)
+                    .then(vkidOnSuccess)
+                    .catch(error => {
+                        showAuthError('Ошибка обмена кода: ' + (error.error || error.message));
+                        console.error('Ошибка обмена кода:', error);
+                    });
+            })
+            .on(VKID.OneTap.Events.LOGIN_FAILED, function(error) {
+                showAuthError('Ошибка авторизации: ' + (error.error || 'Неизвестная ошибка'));
+                console.error('Ошибка авторизации:', error);
+            })
+            .on(VKID.OneTap.Events.ERROR, function(error) {
+                showAuthError('Ошибка виджета: ' + error.message);
+                console.error('Ошибка виджета:', error);
+            });
+
+                function vkidOnSuccess(data) {
+                    accessToken = data.access_token;
+                    userId = data.user_id;
+
+                    document.getElementById('userInfo').textContent = `Вы авторизованы как пользователь ID: ${userId}`;
+
+                    document.getElementById('actionContainer').classList.remove('hidden');
+                    document.getElementById('textContainer').classList.remove('hidden');
+                    document.getElementById('execute').classList.remove('hidden');
+                }
+
+                function vkidOnError(error) {
+                    console.error('Ошибка авторизации:', error);
+                    document.getElementById('userInfo').textContent = 'Ошибка авторизации. Пожалуйста, попробуйте снова.';
+                }
+            } else {
+                console.error('VK ID SDK не загружен');
+            }
+
+            const actionSelect = document.getElementById('action');
+            const postIdContainer = document.getElementById('postIdContainer');
+            const ownerIdContainer = document.getElementById('ownerIdContainer');
+            const userIdContainer = document.getElementById('userIdContainer');
+            const textContainer = document.getElementById('textContainer');
+
+            actionSelect.addEventListener('change', function() {
+                const action = this.value;
+
+                postIdContainer.classList.add('hidden');
+                ownerIdContainer.classList.add('hidden');
+                userIdContainer.classList.add('hidden');
+
+                if (action === 'comment' || action === 'like') {
+                    postIdContainer.classList.remove('hidden');
+                    ownerIdContainer.classList.remove('hidden');
+                }
+
+                if (action === 'message') {
+                    userIdContainer.classList.remove('hidden');
+                }
+
+                if (action === 'status') {
+                    textContainer.querySelector('label').textContent = 'Новый статус:';
+                } else if (action === 'message') {
+                    textContainer.querySelector('label').textContent = 'Текст сообщения:';
+                } else {
+                    textContainer.querySelector('label').textContent = 'Текст:';
+                }
+            });
+
+            document.getElementById('execute').addEventListener('click', function() {
+                if (!accessToken) {
+                    alert('Пожалуйста, авторизуйтесь!');
+                    return;
+                }
+
+                const action = actionSelect.value;
+                const text = document.getElementById('text').value;
+                const postId = document.getElementById('postId')?.value;
+                const ownerId = document.getElementById('ownerId')?.value || userId;
+                const targetUserId = document.getElementById('userId')?.value;
+
+                executeVkAction(action, {
+                    text,
+                    postId,
+                    ownerId,
+                    userId: targetUserId,
+                    accessToken
+                });
+            });
+        });
+
+        function executeVkAction(action, params) {
+            let apiMethod = '';
+            let apiParams = {
+                access_token: params.accessToken,
+                v: '5.131'
+            };
+            let successMessage = '';
+
+            switch(action) {
+                case 'post':
+                    apiMethod = 'wall.post';
+                    apiParams.message = params.text;
+                    apiParams.friends_only = 1;
+                    successMessage = `Пост "${params.text}" успешно опубликован с видимостью только для друзей.`;
+                    break;
+
+                case 'comment':
+                    apiMethod = 'wall.createComment';
+                    apiParams.owner_id = params.ownerId;
+                    apiParams.post_id = params.postId;
+                    apiParams.message = params.text;
+                    successMessage = `Комментарий "${params.text}" успешно добавлен к посту ${params.postId}.`;
+                    break;
+
+                case 'status':
+                    apiMethod = 'status.set';
+                    apiParams.text = params.text;
+                    successMessage = `Статус успешно изменен на "${params.text}".`;
+                    break;
+
+                case 'like':
+                    apiMethod = 'likes.add';
+                    apiParams.type = 'post';
+                    apiParams.owner_id = params.ownerId;
+                    apiParams.item_id = params.postId;
+                    successMessage = `Пост ${params.postId} успешно лайкнут.`;
+                    break;
+
+                case 'message':
+                    apiMethod = 'messages.send';
+                    apiParams.user_id = params.userId;
+                    apiParams.message = params.text;
+                    apiParams.random_id = Math.floor(Math.random() * 1000000);
+                    successMessage = `Сообщение "${params.text}" успешно отправлено пользователю ${params.userId}.`;
+                    break;
+
+                default:
+                    document.getElementById('result').textContent = 'Неизвестное действие.';
+                    return;
+            }
+
+            const url = `https://api.vk.com/method/${apiMethod}?${new URLSearchParams(apiParams)}`;
+
+            fetch(url, {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    document.getElementById('result').textContent = `Ошибка: ${data.error.error_msg}`;
+                } else {
+                    document.getElementById('result').textContent = successMessage;
+                    console.log('Успешно:', data);
+                }
+            })
+            .catch(error => {
+                document.getElementById('result').textContent = `Ошибка при выполнении запроса: ${error.message}`;
+                console.error('Ошибка:', error);
+            });
+        }
+    </script>
+</body>
+</html>

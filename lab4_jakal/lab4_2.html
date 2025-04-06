@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Взаимодействие с API ВКонтакте</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        h1, h2 {
+            color: #45688E;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, textarea, select {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #45688E;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #3a5a7a;
+        }
+        #auth-status {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .not-authenticated {
+            background-color: #ffebee;
+            color: #c62828;
+        }
+        .authenticated {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+        }
+        .result {
+            margin-top: 15px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: #f9f9f9;
+        }
+    </style>
+</head>
+<body>
+    <h1>Взаимодействие с API ВКонтакте</h1>
+
+    <div class="container">
+        <h2>Авторизация</h2>
+        <p>Сначала необходимо авторизоваться, чтобы получить токен доступа.</p>
+        <button id="auth-button">Авторизоваться ВКонтакте</button>
+        <div id="auth-status" class="not-authenticated">Не авторизован</div>
+        <div id="token-info" style="display: none;">
+            <label for="access-token">Токен доступа:</label>
+            <input type="text" id="access-token" readonly>
+            <label for="user-id">ID пользователя:</label>
+            <input type="text" id="user-id" readonly>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>Действия</h2>
+        <select id="action-select">
+            <option value="post">Создать запись (только для друзей)</option>
+            <option value="comment">Оставить комментарий</option>
+            <option value="status">Изменить статус</option>
+            <option value="like">Поставить лайк</option>
+            <option value="message">Отправить сообщение</option>
+        </select>
+
+        <div id="post-options" class="action-options">
+            <label for="post-text">Текст записи:</label>
+            <textarea id="post-text" rows="4"></textarea>
+            <label for="post-owner-id">ID владельца стены (оставьте пустым для своей стены):</label>
+            <input type="text" id="post-owner-id" placeholder="например, 123456">
+            <button id="post-button">Опубликовать</button>
+        </div>
+
+        <div id="comment-options" class="action-options" style="display: none;">
+            <label for="comment-post-id">ID записи:</label>
+            <input type="text" id="comment-post-id">
+            <label for="comment-owner-id">ID владельца записи:</label>
+            <input type="text" id="comment-owner-id">
+            <label for="comment-text">Текст комментария:</label>
+            <textarea id="comment-text" rows="4"></textarea>
+            <button id="comment-button">Отправить комментарий</button>
+        </div>
+
+        <div id="status-options" class="action-options" style="display: none;">
+            <label for="status-text">Новый статус:</label>
+            <input type="text" id="status-text">
+            <button id="status-button">Обновить статус</button>
+        </div>
+
+        <div id="like-options" class="action-options" style="display: none;">
+            <label for="like-item-id">ID объекта (запись, комментарий и т.д.):</label>
+            <input type="text" id="like-item-id">
+            <label for="like-owner-id">ID владельца объекта:</label>
+            <input type="text" id="like-owner-id">
+            <label for="like-type">Тип объекта:</label>
+            <select id="like-type">
+                <option value="post">Запись</option>
+                <option value="comment">Комментарий</option>
+                <option value="photo">Фотография</option>
+                <option value="video">Видео</option>
+            </select>
+            <button id="like-button">Поставить лайк</button>
+        </div>
+
+        <div id="message-options" class="action-options" style="display: none;">
+            <label for="message-user-id">ID пользователя:</label>
+            <input type="text" id="message-user-id">
+            <label for="message-text">Текст сообщения:</label>
+            <textarea id="message-text" rows="4"></textarea>
+            <button id="message-button">Отправить сообщение</button>
+        </div>
+
+        <div id="action-result" class="result" style="display: none;"></div>
+    </div>
+
+    <script>
+        const authButton = document.getElementById('auth-button');
+        const authStatus = document.getElementById('auth-status');
+        const tokenInfo = document.getElementById('token-info');
+        const accessTokenInput = document.getElementById('access-token');
+        const userIdInput = document.getElementById('user-id');
+
+        const actionSelect = document.getElementById('action-select');
+        const actionOptions = document.querySelectorAll('.action-options');
+
+        const postButton = document.getElementById('post-button');
+        const commentButton = document.getElementById('comment-button');
+        const statusButton = document.getElementById('status-button');
+        const likeButton = document.getElementById('like-button');
+        const messageButton = document.getElementById('message-button');
+
+        const actionResult = document.getElementById('action-result');
+
+        const APP_ID = '53151156';
+        const API_VERSION = '5.131';
+
+        let accessToken = 'vk1.a.sFLw2JLjqojs7_2fIe-lI39PsY2RKbT_Sa-oLVdwMuahXjucAWoFPs_krbK2ymPnyU2a39f2BwqtKhmIxsZ6YpJbIczflRuUD3o9_ELsYGh6LMRT_igs9OpXh_DK9l3Nwg2pZ9SCGDrRTVYjImdWrGpbSbgkV4mvh1ZWbLNspu488Z-vciiay5GxQvhdjMhg3a1HQzc7cjoGAgQfrRup3A&expires_in=86400';
+        let userId = '231117416';
+
+        actionSelect.addEventListener('change', function() {
+            actionOptions.forEach(option => option.style.display = 'none');
+            const selectedOption = this.value;
+            document.getElementById(`${selectedOption}-options`).style.display = 'block';
+        });
+
+        authButton.addEventListener('click', function() {
+            const scope = [
+                'wall',         // Для публикации и лайков
+                'friends',      // Для записей только для друзей
+                'status',       // Для обновления статуса
+                'messages',     // Для отправки сообщений
+                'offline'       // Для долгоживущего токена
+            ].join(',');
+
+            const authUrl = `https://oauth.vk.com/authorize?client_id=${APP_ID}` +
+                           `&redirect_uri=https://oauth.vk.com/blank.html` +
+                           `&response_type=token` +
+                           `&scope=${scope}` +
+                           `&v=${API_VERSION}` +
+                           `&display=page`;
+
+            const authWindow = window.open(authUrl, 'VK Auth', 'width=600,height=700');
+
+            const checkToken = setInterval(() => {
+                try {
+                    if (authWindow.location.href.indexOf('access_token') !== -1) {
+                        clearInterval(checkToken);
+
+                        const url = new URL(authWindow.location.href.replace('#', '?'));
+                        accessToken = url.searchParams.get('access_token');
+                        userId = url.searchParams.get('user_id');
+
+                        accessTokenInput.value = accessToken;
+                        userIdInput.value = userId;
+                        tokenInfo.style.display = 'block';
+                        authStatus.textContent = 'Авторизован';
+                        authStatus.className = 'authenticated';
+
+                        authWindow.close();
+                    }
+                } catch (e) {
+                    // Ошибки кросс-доменного доступа будут возникать до редиректа
+                }
+
+                if (authWindow.closed) {
+                    clearInterval(checkToken);
+                }
+            }, 500);
+        });
+
+        async function vkApiCall(method, params) {
+            if (!accessToken) {
+                alert('Пожалуйста, сначала авторизуйтесь!');
+                return null;
+            }
+
+            params.access_token = accessToken;
+            params.v = API_VERSION;
+
+            const queryString = new URLSearchParams(params).toString();
+
+            try {
+                const response = await fetch(`https://api.vk.com/method/${method}?${queryString}`);
+                const data = await response.json();
+
+                if (data.error) {
+                    throw new Error(data.error.error_msg);
+                }
+
+                return data.response;
+            } catch (error) {
+                console.error('Ошибка API:', error);
+                actionResult.textContent = `Ошибка: ${error.message}`;
+                actionResult.style.display = 'block';
+                return null;
+            }
+        }
+
+        postButton.addEventListener('click', async function() {
+            const text = document.getElementById('post-text').value;
+            const ownerId = document.getElementById('post-owner-id').value || userId;
+
+            if (!text) {
+                alert('Пожалуйста, введите текст записи');
+                return;
+            }
+
+            const response = await vkApiCall('wall.post', {
+                owner_id: ownerId,
+                message: text,
+                friends_only: 1,  // Только для друзей
+            });
+
+            if (response) {
+                actionResult.textContent = `Запись успешно создана! ID записи: ${response.post_id}`;
+                actionResult.style.display = 'block';
+            }
+        });
+
+        commentButton.addEventListener('click', async function() {
+            const postId = document.getElementById('comment-post-id').value;
+            const ownerId = document.getElementById('comment-owner-id').value || userId;
+            const text = document.getElementById('comment-text').value;
+
+            if (!postId || !text) {
+                alert('Пожалуйста, заполните все обязательные поля');
+                return;
+            }
+
+            const response = await vkApiCall('wall.createComment', {
+                owner_id: ownerId,
+                post_id: postId,
+                message: text,
+            });
+
+            if (response) {
+                actionResult.textContent = `Комментарий успешно добавлен! ID комментария: ${response.comment_id}`;
+                actionResult.style.display = 'block';
+            }
+        });
+
+        statusButton.addEventListener('click', async function() {
+            const text = document.getElementById('status-text').value;
+
+            if (!text) {
+                alert('Пожалуйста, введите текст статуса');
+                return;
+            }
+
+            const response = await vkApiCall('status.set', {
+                text: text,
+            });
+
+            if (response === 1) {
+                actionResult.textContent = 'Статус успешно обновлён!';
+                actionResult.style.display = 'block';
+            }
+        });
+
+        likeButton.addEventListener('click', async function() {
+            const itemId = document.getElementById('like-item-id').value;
+            const ownerId = document.getElementById('like-owner-id').value || userId;
+            const type = document.getElementById('like-type').value;
+
+            if (!itemId) {
+                alert('Пожалуйста, введите ID объекта');
+                return;
+            }
+
+            const response = await vkApiCall('likes.add', {
+                type: type,
+                owner_id: ownerId,
+                item_id: itemId,
+            });
+
+            if (response) {
+                actionResult.textContent = `Лайк поставлен! Новое количество лайков: ${response.likes}`;
+                actionResult.style.display = 'block';
+            }
+        });
+
+        messageButton.addEventListener('click', async function() {
+            const recipientId = document.getElementById('message-user-id').value;
+            const text = document.getElementById('message-text').value;
+
+            if (!recipientId || !text) {
+                alert('Пожалуйста, заполните все обязательные поля');
+                return;
+            }
+
+            const response = await vkApiCall('messages.send', {
+                user_id: recipientId,
+                message: text,
+                random_id: Math.floor(Math.random() * 1000000),
+            });
+
+            if (response) {
+                actionResult.textContent = `Сообщение отправлено! ID сообщения: ${response}`;
+                actionResult.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>
