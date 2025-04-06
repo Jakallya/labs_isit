@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VK API Tasks</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1 {
+            color: #4a76a8;
+        }
+        .task {
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 1px solid #e7e8ec;
+            border-radius: 5px;
+        }
+        button {
+            background-color: #4a76a8;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #3a5f8a;
+        }
+        input {
+            padding: 8px;
+            margin: 5px 0;
+            width: 100px;
+        }
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #f5f5f5;
+            border-radius: 4px;
+            white-space: pre-wrap;
+        }
+        .error {
+            color: red;
+        }
+    </style>
+</head>
+<body>
+    <h1>VK API Tasks</h1>
+
+    <div>
+        <label for="limit">Ограничение количества:</label>
+        <input type="number" id="limit" min="1" value="5">
+    </div>
+
+    <div class="task">
+        <h2>1. Друзья участников группы</h2>
+        <label for="groupId">ID группы:</label>
+        <input type="text" id="groupId" placeholder="198646308">
+        <button onclick="task1()">Выполнить</button>
+        <div id="result1" class="result"></div>
+    </div>
+
+    <div class="task">
+        <h2>2. Лайки последним онлайн друзьям</h2>
+        <button onclick="task2()">Выполнить</button>
+        <div id="result2" class="result"></div>
+    </div>
+
+    <div class="task">
+        <h2>3. Пост о группах</h2>
+        <button onclick="task3()">Выполнить</button>
+        <div id="result3" class="result"></div>
+    </div>
+
+    <div class="task">
+        <h2>4. Друзья с максимальными друзьями</h2>
+        <button onclick="task4()">Выполнить</button>
+        <div id="result4" class="result"></div>
+    </div>
+
+    <div class="task">
+        <h2>5. Авторы последнего поста</h2>
+        <button onclick="task5()">Выполнить</button>
+        <div id="result5" class="result"></div>
+    </div>
+
+    <script>
+        // Конфигурация
+        const CONFIG = {
+            token: "vk1.a.Qa8Zr1opBZ6enGUTuXPFDjMgsW-I3JWrDhXaJsBVPBvZs8bukITCzPzVgXQmz_OJl2KK51yB3D46CGvzSSp8NnH17SOvITTV78oyoGGJyjb62nkuSUrt1ky6HtIgjQBcU3wZzCHAWpje5qQtlQ2fOz7dqvRlCoOVjc7pxsRK0Fx2nYgTFEikOgzvg_X1OJAQUja0CkHG6bjYHCT1U18ILQ",  // ЗАМЕНИТЕ НА СВОЙ ТОКЕН
+            apiVersion: "5.131"
+        };
+
+        // Общая функция для запросов
+        async function vkRequest(method, params = {}) {
+            try {
+                params.access_token = CONFIG.token;
+                params.v = CONFIG.apiVersion;
+
+                const url = `https://api.vk.com/method/${method}?${new URLSearchParams(params)}`;
+                const response = await fetch(url, { method: 'POST' });
+                const data = await response.json();
+
+                if (data.error) {
+                    throw new Error(`${data.error.error_msg} (код ${data.error.error_code})`);
+                }
+
+                return data.response;
+            } catch (error) {
+                console.error(`Ошибка в ${method}:`, error);
+                throw error;
+            }
+        }
+
+        // 1. Друзья участников группы
+        async function task1() {
+            const groupId = document.getElementById('groupId').value;
+            const limit = document.getElementById('limit').value || 5;
+            const result = document.getElementById('result1');
+
+            if (!groupId) {
+                result.innerHTML = '<span class="error">Введите ID группы</span>';
+                return;
+            }
+
+            try {
+                result.textContent = "Загрузка...";
+
+                const members = await vkRequest('groups.getMembers', {
+                    group_id: groupId,
+                    count: limit
+                });
+
+                const allFriends = new Set();
+
+                for (const userId of members.items) {
+                    try {
+                        const friends = await vkRequest('friends.get', {
+                            user_id: userId,
+                            count: limit
+                        });
+                        friends.items.forEach(f => allFriends.add(f));
+                    } catch (e) {
+                        console.log(`Пропуск пользователя ${userId}: ${e.message}`);
+                    }
+                }
+
+                result.textContent = `Найдено друзей: ${allFriends.size}\n${Array.from(allFriends).join(', ')}`;
+            } catch (error) {
+                result.innerHTML = `<span class="error">Ошибка: ${error.message}</span>`;
+            }
+        }
+
+        // 2. Лайки последним онлайн друзьям
+        async function task2() {
+            const limit = document.getElementById('limit').value || 5;
+            const result = document.getElementById('result2');
+
+            try {
+                result.textContent = "Загрузка...";
+
+                const friends = await vkRequest('friends.get', {
+                    fields: 'last_seen,online,first_name,last_name',
+                    count: 100
+                });
+
+                const recent = friends.items
+                    .filter(f => f.online || (f.last_seen?.time && Date.now()/1000 - f.last_seen.time < 86400))
+                    .sort((a, b) => (b.last_seen?.time || 0) - (a.last_seen?.time || 0))
+                    .slice(0, limit);
+
+                let output = "Результаты:\n\n";
+
+                for (const friend of recent) {
+                    output += `${friend.first_name} ${friend.last_name}: `;
+
+                    try {
+                        const wall = await vkRequest('wall.get', {
+                            owner_id: friend.id,
+                            count: 1
+                        });
+
+                        if (wall.items[0]) {
+                            await vkRequest('likes.add', {
+                                type: 'post',
+                                owner_id: friend.id,
+                                item_id: wall.items[0].id
+                            });
+                            output += `Лайк поставлен (пост ${wall.items[0].id})\n`;
+                        } else {
+                            output += "Нет постов\n";
+                        }
+                    } catch (e) {
+                        output += `Ошибка: ${e.message}\n`;
+                    }
+                }
+
+                result.textContent = output;
+            } catch (error) {
+                result.innerHTML = `<span class="error">Ошибка: ${error.message}</span>`;
+            }
+        }
+
+        // 3. Пост о группах
+        async function task3() {
+            const limit = document.getElementById('limit').value || 5;
+            const result = document.getElementById('result3');
+
+            try {
+                result.textContent = "Создание поста...";
+
+                const groups = await vkRequest('groups.get', {
+                    extended: 1,
+                    fields: 'members_count',
+                    count: limit
+                });
+
+                let postText = "Мои группы:\n\n";
+                groups.items.forEach(g => {
+                    postText += `${g.name} - ${g.members_count || 'N/A'} участников\n`;
+                });
+
+                const post = await vkRequest('wall.post', {
+                    message: postText
+                });
+
+                result.textContent = `Пост создан! ID: ${post.post_id}\n\n${postText}`;
+            } catch (error) {
+                result.innerHTML = `<span class="error">Ошибка: ${error.message}</span>`;
+            }
+        }
+
+        // 4. Друзья с максимальным количеством друзей
+        async function task4() {
+            const limit = document.getElementById('limit').value || 5;
+            const result = document.getElementById('result4');
+
+            try {
+                result.textContent = "Поиск самых популярных друзей...";
+
+                // 1. Получаем список своих друзей
+                const myFriends = await vkRequest('friends.get', {
+                    fields: 'first_name,last_name',
+                    count: limit
+                });
+
+                // 2. Для каждого друга получаем количество его друзей
+                const friendsData = [];
+
+                for (const friend of myFriends.items) {
+                    try {
+                        // Получаем друзей друга
+                        const friendsOfFriend = await vkRequest('friends.get', {
+                            user_id: friend.id,
+                            count: 0 // Только количество, без списка
+                        });
+
+                        friendsData.push({
+                            id: friend.id,
+                            name: `${friend.first_name} ${friend.last_name}`,
+                            count: friendsOfFriend.count
+                        });
+                    } catch (e) {
+                        console.log(`Не удалось получить друзей для ${friend.id}: ${e.message}`);
+                        friendsData.push({
+                            id: friend.id,
+                            name: `${friend.first_name} ${friend.last_name}`,
+                            count: 0
+                        });
+                    }
+                }
+
+                // 3. Сортируем по количеству друзей (по убыванию)
+                friendsData.sort((a, b) => b.count - a.count);
+
+                // 4. Формируем результат
+                let output = "Топ друзей по количеству друзей:\n\n";
+                friendsData.slice(0, limit).forEach((item, index) => {
+                    output += `${index + 1}. ${item.name} (id${item.id}) - ${item.count} друзей\n`;
+                });
+
+                result.textContent = output;
+            } catch (error) {
+                result.innerHTML = `<span class="error">Ошибка: ${error.message}</span>`;
+            }
+        }
+
+        // 5. Авторы последнего поста
+        async function task5() {
+            const limit = document.getElementById('limit').value || 10;
+            const result = document.getElementById('result5');
+
+            try {
+                result.textContent = "Анализ ленты...";
+
+                const feed = await vkRequest('newsfeed.get', {
+                    filters: 'post',
+                    count: 1
+                });
+
+                if (!feed.items[0]) {
+                    result.textContent = "В ленте нет постов";
+                    return;
+                }
+
+                const sourceId = feed.items[0].source_id;
+                let output = "";
+
+                if (sourceId > 0) {
+                    // Пользователь
+                    const user = await vkRequest('users.get', {
+                        user_ids: sourceId
+                    });
+
+                    const friends = await vkRequest('friends.get', {
+                        user_id: sourceId,
+                        fields: 'first_name,last_name',
+                        count: limit
+                    });
+
+                    output = `Друзья ${user[0].first_name} ${user[0].last_name}:\n\n`;
+                    friends.items.forEach(f => {
+                        output += `${f.first_name} ${f.last_name}\n`;
+                    });
+                } else {
+                    // Группа
+                    const groupId = Math.abs(sourceId);
+                    const group = await vkRequest('groups.getById', {
+                        group_ids: groupId
+                    });
+
+                    const members = await vkRequest('groups.getMembers', {
+                        group_id: groupId,
+                        fields: 'first_name,last_name',
+                        count: limit
+                    });
+
+                    output = `Участники ${group[0].name}:\n\n`;
+                    members.items.forEach(m => {
+                        output += `${m.first_name} ${m.last_name}\n`;
+                    });
+                }
+
+                result.textContent = output;
+            } catch (error) {
+                result.innerHTML = `<span class="error">Ошибка: ${error.message}</span>`;
+            }
+        }
+    </script>
+</body>
+</html>

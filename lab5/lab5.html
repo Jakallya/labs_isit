@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VK API Tasks</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1 {
+            color: #4a76a8;
+        }
+        .task {
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 1px solid #e7e8ec;
+            border-radius: 5px;
+        }
+        button {
+            background-color: #4a76a8;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #3a5f8a;
+        }
+        input {
+            padding: 8px;
+            margin: 5px 0;
+            width: 100px;
+        }
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #f5f5f5;
+            border-radius: 4px;
+            white-space: pre-wrap;
+        }
+        .error {
+            color: red;
+        }
+        .time {
+            color: #666;
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>VK API Tasks</h1>
+
+    <div>
+        <label for="limit">Ограничение количества (для дополнительного задания):</label>
+        <input type="number" id="limit" min="1" value="5">
+    </div>
+
+    <div class="task">
+        <h2>1. Собрать список ID друзей участников группы</h2>
+        <label for="groupId">ID группы (без минуса):</label>
+        <input type="text" id="groupId" placeholder="123456">
+        <button onclick="getFriendsOfGroupMembers()">Выполнить</button>
+        <div id="result1" class="result"></div>
+    </div>
+
+    <div class="task">
+        <h2>2. Поставить лайк верхнему посту у последних онлайн друзей</h2>
+        <button onclick="likeTopPostsOfLastOnlineFriends()">Выполнить</button>
+        <div id="result2" class="result"></div>
+    </div>
+
+    <div class="task">
+        <h2>3. Создать пост с названиями и количеством участников 5 групп</h2>
+        <button onclick="createPostWithGroupsInfo()">Выполнить</button>
+        <div id="result3" class="result"></div>
+    </div>
+
+    <div class="task">
+        <h2>4. Найти аккаунт с максимальным количеством друзей среди друзей друзей</h2>
+        <button onclick="findFriendWithMostFriends()">Выполнить</button>
+        <div id="result4" class="result"></div>
+    </div>
+
+    <div class="task">
+        <h2>5. Вывести имена друзей/участников автора последнего поста в ленте</h2>
+        <button onclick="getFriendsOfLastPostAuthor()">Выполнить</button>
+        <div id="result5" class="result"></div>
+    </div>
+
+    <script>
+        // Общая функция для выполнения VK API запросов
+        function vkApiRequest(method, params, callback) {
+            const startTime = Date.now();
+            params.v = '5.131';
+            params.access_token = 'vk1.a.Qa8Zr1opBZ6enGUTuXPFDjMgsW-I3JWrDhXaJsBVPBvZs8bukITCzPzVgXQmz_OJl2KK51yB3D46CGvzSSp8NnH17SOvITTV78oyoGGJyjb62nkuSUrt1ky6HtIgjQBcU3wZzCHAWpje5qQtlQ2fOz7dqvRlCoOVjc7pxsRK0Fx2nYgTFEikOgzvg_X1OJAQUja0CkHG6bjYHCT1U18ILQ';
+
+            const url = `https://api.vk.com/method/${method}?${new URLSearchParams(params)}`;
+
+            fetch(url, { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        callback(new Error(data.error.error_msg), null, Date.now() - startTime);
+                    } else {
+                        callback(null, data.response, Date.now() - startTime);
+                    }
+                })
+                .catch(error => callback(error, null, Date.now() - startTime));
+        }
+
+        // 1. Собрать список ID друзей участников группы
+        function getFriendsOfGroupMembers() {
+            const startTime = Date.now();
+            const groupId = document.getElementById('groupId').value;
+            const limit = parseInt(document.getElementById('limit').value) || 5;
+
+            if (!groupId) {
+                document.getElementById('result1').innerHTML = '<span class="error">Введите ID группы</span>';
+                return;
+            }
+
+            document.getElementById('result1').textContent = 'Загрузка...';
+
+            vkApiRequest('groups.getMembers', { group_id: groupId, count: limit }, (error, members, requestTime) => {
+                if (error) {
+                    document.getElementById('result1').innerHTML =
+                        `<span class="error">Ошибка: ${error.message}</span>` +
+                        `<div class="time">Время выполнения: ${Date.now() - startTime} мс</div>`;
+                    return;
+                }
+
+                const allFriends = new Set();
+                let processed = 0;
+                let totalRequestTime = requestTime;
+
+                members.items.forEach(userId => {
+                    vkApiRequest('friends.get', { user_id: userId, count: limit }, (err, result, reqTime) => {
+                        totalRequestTime += reqTime;
+                        if (!err && result && result.items) {
+                            result.items.forEach(friendId => allFriends.add(friendId));
+                        }
+
+                        processed++;
+                        if (processed === members.items.length) {
+                            document.getElementById('result1').innerHTML =
+                                `Найдено друзей: ${allFriends.size}\n${Array.from(allFriends).join(', ')}` +
+                                `<div class="time">Время выполнения: ${Date.now() - startTime} мс (запросы: ${totalRequestTime} мс)</div>`;
+                        }
+                    });
+                });
+            });
+        }
+
+        // 2. Поставить лайк верхнему посту у последних онлайн друзей (исправлено)
+        function likeTopPostsOfLastOnlineFriends() {
+            const startTime = Date.now();
+            const limit = parseInt(document.getElementById('limit').value) || 5;
+            document.getElementById('result2').textContent = 'Загрузка...';
+
+            vkApiRequest('friends.get', { fields: 'last_seen,online', count: 100 }, (error, friends, reqTime) => {
+                if (error) {
+                    document.getElementById('result2').innerHTML =
+                        `<span class="error">Ошибка: ${error.message}</span>` +
+                        `<div class="time">Время выполнения: ${Date.now() - startTime} мс</div>`;
+                    return;
+                }
+
+                const onlineFriends = friends.items
+                    .filter(friend => friend.online || (friend.last_seen && Date.now()/1000 - friend.last_seen.time < 86400))
+                    .sort((a, b) => (b.last_seen?.time || 0) - (a.last_seen?.time || 0))
+                    .slice(0, limit);
+
+                let resultText = `Будем лайкать посты у ${onlineFriends.length} друзей:\n`;
+                document.getElementById('result2').textContent = resultText;
+
+                let completed = 0;
+                let totalRequestTime = reqTime;
+
+                onlineFriends.forEach((friend, index) => {
+                    setTimeout(() => {
+                        vkApiRequest('wall.get', { owner_id: friend.id, count: 1 }, (wallError, wall, wallTime) => {
+                            totalRequestTime += wallTime;
+
+                            if (wallError || !wall.items?.length) {
+                                resultText += `\n${friend.first_name} ${friend.last_name}: ${wallError ? wallError.message : 'Нет постов'}`;
+                                document.getElementById('result2').textContent = resultText;
+                                checkCompletion();
+                                return;
+                            }
+
+                            const post = wall.items[0];
+                            vkApiRequest('likes.add', {
+                                type: 'post',
+                                owner_id: friend.id,
+                                item_id: post.id
+                            }, (likeError, _, likeTime) => {
+                                totalRequestTime += likeTime;
+                                resultText += `\n${friend.first_name} ${friend.last_name}: ${
+                                    likeError ? likeError.message : `Лайк поставлен (пост ${post.id})`
+                                }`;
+                                document.getElementById('result2').innerHTML =
+                                    resultText +
+                                    `<div class="time">Время выполнения: ${Date.now() - startTime} мс (запросы: ${totalRequestTime} мс)</div>`;
+                                checkCompletion();
+                            });
+                        });
+                    }, index * 700); // Задержка 500 мс между запросами
+                });
+
+                function checkCompletion() {
+                    completed++;
+                    if (completed === onlineFriends.length) {
+                        document.getElementById('result2').innerHTML =
+                            resultText +
+                            `<div class="time">Время выполнения: ${Date.now() - startTime} мс (запросы: ${totalRequestTime} мс)</div>`;
+                    }
+                }
+            });
+        }
+
+        // 3. Создать пост с названиями и количеством участников 5 групп
+        function createPostWithGroupsInfo() {
+            const startTime = Date.now();
+            const limit = parseInt(document.getElementById('limit').value) || 5;
+            document.getElementById('result3').textContent = 'Загрузка...';
+
+            vkApiRequest('groups.get', { extended: 1, fields: 'members_count', count: limit }, (error, groups, reqTime) => {
+                if (error) {
+                    document.getElementById('result3').innerHTML =
+                        `<span class="error">Ошибка: ${error.message}</span>` +
+                        `<div class="time">Время выполнения: ${Date.now() - startTime} мс</div>`;
+                    return;
+                }
+
+                let postText = 'Группы, в которых я состою:\n\n';
+                groups.items.forEach(group => {
+                    postText += `${group.name || `Группа ${group.id}`} - ${group.members_count || 'нет данных'} участников\n`;
+                });
+
+                vkApiRequest('wall.post', { message: postText }, (postError, result, postTime) => {
+                    const totalTime = Date.now() - startTime;
+                    if (postError) {
+                        document.getElementById('result3').innerHTML =
+                            `<span class="error">Ошибка: ${postError.message}</span>` +
+                            `<div class="time">Время выполнения: ${totalTime} мс (запросы: ${reqTime + postTime} мс)</div>`;
+                    } else {
+                        document.getElementById('result3').innerHTML =
+                            `Пост успешно создан! ID: ${result.post_id}\n\n${postText}` +
+                            `<div class="time">Время выполнения: ${totalTime} мс (запросы: ${reqTime + postTime} мс)</div>`;
+                    }
+                });
+            });
+        }
+
+        // 4. Найти аккаунт с максимальным количеством друзей среди друзей друзей
+        function findFriendWithMostFriends() {
+            const startTime = Date.now();
+            const limit = parseInt(document.getElementById('limit').value) || 5;
+            document.getElementById('result4').textContent = 'Загрузка...';
+
+            vkApiRequest('friends.get', { count: limit }, (error, friends, reqTime) => {
+                if (error) {
+                    document.getElementById('result4').innerHTML =
+                        `<span class="error">Ошибка: ${error.message}</span>` +
+                        `<div class="time">Время выполнения: ${Date.now() - startTime} мс</div>`;
+                    return;
+                }
+
+                const friendsWithCount = [];
+                let processed = 0;
+                let totalRequestTime = reqTime;
+
+                friends.items.forEach(friendId => {
+                    vkApiRequest('users.get', { user_ids: friendId, fields: 'counters' }, (userError, userInfo, userTime) => {
+                        totalRequestTime += userTime;
+                        if (!userError && userInfo[0]) {
+                            friendsWithCount.push({
+                                id: friendId,
+                                name: `${userInfo[0].first_name} ${userInfo[0].last_name}`,
+                                friends_count: userInfo[0]?.counters?.friends || 0
+                            });
+                        }
+
+                        processed++;
+                        if (processed === friends.items.length) {
+                            friendsWithCount.sort((a, b) => b.friends_count - a.friends_count);
+                            let resultText = 'Аккаунты с наибольшим количеством друзей:\n\n';
+                            friendsWithCount.forEach(friend => {
+                                resultText += `${friend.name} (id${friend.id}) - ${friend.friends_count} друзей\n`;
+                            });
+                            document.getElementById('result4').innerHTML =
+                                resultText +
+                                `<div class="time">Время выполнения: ${Date.now() - startTime} мс (запросы: ${totalRequestTime} мс)</div>`;
+                        }
+                    });
+                });
+            });
+        }
+
+        // 5. Вывести имена друзей/участников автора последнего поста в ленте
+        function getFriendsOfLastPostAuthor() {
+            const startTime = Date.now();
+            const limit = parseInt(document.getElementById('limit').value) || 10;
+            document.getElementById('result5').textContent = 'Загрузка...';
+
+            vkApiRequest('newsfeed.get', { filters: 'post', count: 1 }, (error, newsfeed, reqTime) => {
+                const totalTime = Date.now() - startTime;
+                if (error || !newsfeed.items?.length) {
+                    document.getElementById('result5').innerHTML =
+                        (error ? `<span class="error">Ошибка: ${error.message}</span>` : 'Нет постов в ленте') +
+                        `<div class="time">Время выполнения: ${totalTime} мс</div>`;
+                    return;
+                }
+
+                const ownerId = newsfeed.items[0].source_id;
+                let totalRequestTime = reqTime;
+
+                if (ownerId > 0) {
+                    vkApiRequest('users.get', { user_ids: ownerId }, (userError, userInfo, userTime) => {
+                        totalRequestTime += userTime;
+                        if (userError) {
+                            document.getElementById('result5').innerHTML =
+                                `<span class="error">Ошибка: ${userError.message}</span>` +
+                                `<div class="time">Время выполнения: ${Date.now() - startTime} мс</div>`;
+                            return;
+                        }
+
+                        vkApiRequest('friends.get', { user_id: ownerId, count: limit, fields: 'name' }, (friendsError, friends, friendsTime) => {
+                            totalRequestTime += friendsTime;
+                            const totalTime = Date.now() - startTime;
+                            if (friendsError) {
+                                document.getElementById('result5').innerHTML =
+                                    `<span class="error">Ошибка: ${friendsError.message}</span>` +
+                                    `<div class="time">Время выполнения: ${totalTime} мс</div>`;
+                                return;
+                            }
+
+                            let resultText = `10 друзей пользователя ${userInfo[0].first_name} ${userInfo[0].last_name}:\n\n`;
+                            friends.items.forEach(friend => {
+                                resultText += `${friend.first_name} ${friend.last_name}\n`;
+                            });
+                            document.getElementById('result5').innerHTML =
+                                resultText +
+                                `<div class="time">Время выполнения: ${totalTime} мс (запросы: ${totalRequestTime} мс)</div>`;
+                        });
+                    });
+                } else {
+                    const groupId = Math.abs(ownerId);
+                    vkApiRequest('groups.getById', { group_id: groupId }, (groupError, groupInfo, groupTime) => {
+                        totalRequestTime += groupTime;
+                        if (groupError) {
+                            document.getElementById('result5').innerHTML =
+                                `<span class="error">Ошибка: ${groupError.message}</span>` +
+                                `<div class="time">Время выполнения: ${Date.now() - startTime} мс</div>`;
+                            return;
+                        }
+
+                        vkApiRequest('groups.getMembers', { group_id: groupId, count: limit, fields: 'name' }, (membersError, members, membersTime) => {
+                            totalRequestTime += membersTime;
+                            const totalTime = Date.now() - startTime;
+                            if (membersError) {
+                                document.getElementById('result5').innerHTML =
+                                    `<span class="error">Ошибка: ${membersError.message}</span>` +
+                                    `<div class="time">Время выполнения: ${totalTime} мс</div>`;
+                                return;
+                            }
+
+                            let resultText = `10 участников группы "${groupInfo[0].name}":\n\n`;
+                            members.items.forEach(member => {
+                                resultText += `${member.first_name} ${member.last_name}\n`;
+                            });
+                            document.getElementById('result5').innerHTML =
+                                resultText +
+                                `<div class="time">Время выполнения: ${totalTime} мс (запросы: ${totalRequestTime} мс)</div>`;
+                        });
+                    });
+                }
+            });
+        }
+    </script>
+</body>
+</html>
