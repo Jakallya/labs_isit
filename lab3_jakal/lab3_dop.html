@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Список друзей ВКонтакте</title>
+    <style>
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        table, th, td {
+            border: 1px solid black;
+        }
+        th, td {
+            padding: 8px;
+            text-align: left;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>Список друзей ВКонтакте</h1>
+    <label for="cityFilter">Выберите город:</label>
+    <select id="cityFilter">
+        <option value="">Все города</option>
+    </select>
+
+    <table id="friendsTable">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Имя</th>
+                <th>Фамилия</th>
+                <th>Город</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Тут будет инфа моих друзьяшек!!! -->
+        </tbody>
+    </table>
+
+    <script>
+        const accessToken = 'a82dfb9fa82dfb9fa82dfb9f27ab017e1aaa82da82dfb9fcffff23b1c11fef59f1e81bc';
+        const userId = '231117416';
+
+        async function getFriends() {
+            const url = `https://api.vk.com/method/friends.get?user_id=${userId}&fields=first_name,last_name,city&access_token=${accessToken}&v=5.131`;
+
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (data.response) {
+                    const friends = data.response.items;
+                    const tableBody = document.querySelector('#friendsTable tbody');
+                    const cityFilter = document.getElementById('cityFilter');
+
+                    tableBody.innerHTML = '';
+                    cityFilter.innerHTML = '<option value="">Все города</option>';
+
+                    const cities = new Set();
+                    friends.forEach(friend => {
+                        if (friend.city) {
+                            cities.add(friend.city.title);
+                        }
+                    });
+
+                    cities.forEach(city => {
+                        const option = document.createElement('option');
+                        option.value = city;
+                        option.textContent = city;
+                        cityFilter.appendChild(option);
+                    });
+
+                    displayFriends(friends);
+
+                    cityFilter.addEventListener('change', () => {
+                        const selectedCity = cityFilter.value;
+                        const filteredFriends = selectedCity
+                            ? friends.filter(friend => friend.city && friend.city.title === selectedCity)
+                            : friends;
+                        displayFriends(filteredFriends);
+                    });
+                } else {
+                    console.error('Ошибка при получении списка друзей:', data.error);
+                }
+            } catch (error) {
+                console.error('Ошибка при выполнении запроса:', error);
+            }
+        }
+
+        function displayFriends(friends) {
+            const tableBody = document.querySelector('#friendsTable tbody');
+            tableBody.innerHTML = '';
+
+            friends.forEach(friend => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${friend.id}</td>
+                    <td>${friend.first_name}</td>
+                    <td>${friend.last_name}</td>
+                    <td>${friend.city ? friend.city.title : 'Не указан'}</td>
+                `;
+                tableBody.appendChild(row);
+            });
+        }
+
+        getFriends();
+    </script>
+</body>
+</html>
