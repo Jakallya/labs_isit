@@ -1,0 +1,32 @@
+{
+    "Белый": {
+        "photos": [
+            "https://i.pinimg.com/474x/fc/60/f9/fc60f9b7e32e59fbd22ca0eb824d83e8.jpg"
+        ],
+        "description": "Пушистый белый котик с счастливыми глазами"
+    },
+    "Чёрный": {
+        "photos": [
+            "https://i.pinimg.com/474x/aa/f7/31/aaf731f6fdc0be000ca2bacacde240c5.jpg"
+        ],
+        "description": "Чёрный дружелюбный кот"
+    },
+    "Рыжий": {
+        "photos": [
+            "https://i.pinimg.com/474x/8d/f8/71/8df871b066012e7da6a3c9ed345fe5ff.jpg"
+        ],
+        "description": "Единственный нормальный рыжий кот"
+    },
+    "Серый": {
+        "photos": [
+            "https://i.pinimg.com/474x/fd/c2/a3/fdc2a38378473979ba6c7b7b3fc14f7b.jpg"
+        ],
+        "description": "Серый котик с отдохнувшим видом"
+    },
+    "Двухцветный": {
+        "photos": [
+            "https://i.pinimg.com/474x/66/34/5d/66345db9c1f06cb09707d13827e682f3.jpg"
+        ],
+        "description": "Игривый двухцветный котёнок"
+    }
+}
